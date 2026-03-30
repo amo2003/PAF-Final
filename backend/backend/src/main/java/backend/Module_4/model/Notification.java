@@ -23,8 +23,8 @@ public class Notification {
     @Column(nullable = false)
     private String type;
 
-    @Column(nullable = false)
-    private boolean read = false;
+    @Column(name = "is_read", nullable = false)
+private boolean read = false;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
