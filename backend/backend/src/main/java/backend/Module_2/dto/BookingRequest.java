@@ -25,7 +25,7 @@ public class BookingRequest {
     private LocalTime endTime;
 
     @NotBlank(message = "Email is required")
-    private String = userEmail;
+    private String userEmail;
 
     @NotBlank(message = "Purpose is required")
     private String purpose;
