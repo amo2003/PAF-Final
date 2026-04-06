@@ -12,20 +12,20 @@ import java.time.LocalTime;
 import java.util.List;
 
 @Repository
-public interface BookingsRepository extends JpaRepository<Booking, Long> {
+public interface BookingsRepository extends JpaRepository<Bookings, Long> {
 
-    List<Booking> findByUserId(Long userId);
+    List<Bookings> findByUserId(Long userId);
 
-    List<Booking> findByStatus(BookingsStatus status);
+    List<Bookings> findByStatus(BookingsStatus status);
 
-    List<Booking> findByResourceId(Long resourceId);
+    List<Bookings> findByResourceId(Long resourceId);
 
-    @Query("SELECT b FROM Booking b WHERE b.resourceId = :resourceId " +
+    @Query("SELECT b FROM Bookings b WHERE b.resourceId = :resourceId " +
             "AND b.bookingDate = :bookingDate " +
             "AND b.status = 'APPROVED' " +
             "AND b.startTime < :endTime " +
             "AND b.endTime > :startTime")
-    List<Booking> findConflictingBookings(
+    List<Bookings> findConflictingBookings(
             @Param("resourceId") Long resourceId,
             @Param("bookingDate") LocalDate bookingDate,
             @Param("startTime") LocalTime startTime,

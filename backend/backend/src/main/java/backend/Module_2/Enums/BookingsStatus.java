@@ -1,6 +1,6 @@
 package backend.Module_2.Enums;
 
-public enum BookingStatus {
+public enum BookingsStatus {
     PENDING,
     APPROVED,
     REJECTED,

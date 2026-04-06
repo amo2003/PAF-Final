@@ -16,14 +16,14 @@ public class BookingsResponse {
     private String userEmail;
     private String purpose;
     private Integer attendees;
-    private BookingStatus status;
+    private BookingsStatus status;
     private String rejectionReason;
 
     public BookingsResponse() {}
 
     public BookingsResponse(Long id, Long userId, Long resourceId, LocalDate bookingDate,
-                           LocalTime startTime, LocalTime endTime, String userEmail, String purpose,
-                           Integer attendees, BookingsStatus status, String rejectionReason) {
+                            LocalTime startTime, LocalTime endTime, String userEmail, String purpose,
+                            Integer attendees, BookingsStatus status, String rejectionReason) {
         this.id = id;
         this.userId = userId;
         this.resourceId = resourceId;

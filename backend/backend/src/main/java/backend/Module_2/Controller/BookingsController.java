@@ -1,7 +1,7 @@
 package backend.Module_2.Controller;
 
 import backend.Module_2.Enums.BookingsStatus;
-import backend.Module_2.Service.BookingsService;
+import backend.Module_2.Service.BookingsServices;
 import backend.Module_2.dto.BookingsRequest;
 import backend.Module_2.dto.BookingsResponse;
 import jakarta.validation.Valid;
@@ -17,14 +17,13 @@ import java.util.Map;
 @CrossOrigin("*")
 public class BookingsController {
 
-    private final BookingsService bookingService;
+    private final BookingsServices bookingService;
 
-    public BookingsController(BookingsService bookingService) {
+    public BookingsController(BookingsServices bookingService) {
         this.bookingService = bookingService;
     }
 
     // POST /api/bookings
-    // POST /api/bookings — User creates a booking request
     @PostMapping
     public ResponseEntity<BookingsResponse> createBooking(@Valid @RequestBody BookingsRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(bookingService.createBooking(request));

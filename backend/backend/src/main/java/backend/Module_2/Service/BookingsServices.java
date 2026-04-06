@@ -6,7 +6,7 @@ import backend.Module_2.dto.BookingsResponse;
 
 import java.util.List;
 
-public interface BookingService {
+public interface BookingsServices {
 
     BookingsResponse createBooking(BookingsRequest request);
     BookingsResponse getBookingById(Long id);
