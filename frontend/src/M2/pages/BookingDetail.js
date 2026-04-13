@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getBookingById, cancelBooking, deleteBooking } from '../api/bookingApi';
 import StatusBadge from '../components/StatusBadge';
 
@@ -74,10 +74,16 @@ function BookingDetail() {
 
       <div className="flex gap-3">
         {booking.status === 'APPROVED' && (
-          <button onClick={handleCancel} disabled={actionLoading}
-            className="bg-yellow-500 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-600 transition disabled:opacity-50">
-            Cancel Booking
-          </button>
+          <>
+            <Link to={`/checkin/${booking.id}`}
+              className="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition">
+              📱 QR Check-In
+            </Link>
+            <button onClick={handleCancel} disabled={actionLoading}
+              className="bg-yellow-500 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-600 transition disabled:opacity-50">
+              Cancel Booking
+            </button>
+          </>
         )}
         <button onClick={handleDelete} disabled={actionLoading}
           className="bg-red-500 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-red-600 transition disabled:opacity-50">
