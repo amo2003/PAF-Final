@@ -3,7 +3,6 @@ package backend.Module_1.Services;
 import backend.Module_1.DTO.ResourceCreateRequest;
 import backend.Module_1.DTO.ResourceFilterRequest;
 import backend.Module_1.DTO.ResourceResponse;
-import backend.Module_1.DTO.ResourceStatisticsResponse;
 import backend.Module_1.DTO.ResourceUpdateRequest;
 import backend.Module_1.Enums.ResourceStatus;
 import backend.Module_1.Enums.ResourceType;
