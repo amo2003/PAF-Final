@@ -1,7 +1,7 @@
-import AdminUsersPage from "./M4/pages/AdminUsersPage";
+import ProtectedAdminPage from "./M4/components/ProtectedAdminPage";
 
 function App() {
-  return <AdminUsersPage />;
+  return <ProtectedAdminPage />;
 }
 
 export default App;
