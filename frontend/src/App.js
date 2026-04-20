@@ -1,5 +1,7 @@
 import logo from './logo.svg';
 import './App.css';
+//Module1
+import ResourceCatalogPage from "./M1/pages/ResourceCatalogPage";
 
 function App() {
   return (
@@ -20,6 +22,9 @@ function App() {
       </header>
     </div>
   );
+//Module1
+return <ResourceCatalogPage />
+
 }
 
 export default App;
