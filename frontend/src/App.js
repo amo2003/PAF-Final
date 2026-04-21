@@ -1,53 +1,29 @@
-import LoginPage from "./M4/pages/LoginPage";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import LoginPage        from "./M4/pages/LoginPage";
 import LoginSuccessPage from "./M4/pages/LoginSuccessPage";
-import ProtectedAdminPage from "./M4/components/ProtectedAdminPage";
 import NotificationsPage from "./M4/pages/NotificationsPage";
-import NotificationBell from "./M4/components/NotificationBell";
+import AdminUsersPage   from "./M4/pages/AdminUsersPage";
+import "./M4/styles/theme.css";
+
+/* Simple auth guard */
+const RequireAuth = ({ children }) => {
+  const user = localStorage.getItem("currentUser");
+  return user ? children : <Navigate to="/login" replace />;
+};
 
 function App() {
-  const path = window.location.pathname;
-  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-
-  if (path === "/login-success") {
-    return (
-      <div style={{ padding: "20px" }}>
-        {currentUser && (
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "20px" }}>
-            <NotificationBell />
-          </div>
-        )}
-        <LoginSuccessPage />
-      </div>
-    );
-  }
-
-  if (path === "/admin") {
-    return (
-      <div style={{ padding: "20px" }}>
-        {currentUser && (
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "20px" }}>
-            <NotificationBell />
-          </div>
-        )}
-        <ProtectedAdminPage />
-      </div>
-    );
-  }
-
-  if (path === "/notifications") {
-    return (
-      <div style={{ padding: "20px" }}>
-        {currentUser && (
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "20px" }}>
-            <NotificationBell />
-          </div>
-        )}
-        <NotificationsPage />
-      </div>
-    );
-  }
-
-  return <LoginPage />;
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login"         element={<LoginPage />} />
+        <Route path="/login-success" element={<LoginSuccessPage />} />
+        <Route path="/profile"       element={<RequireAuth><LoginSuccessPage /></RequireAuth>} />
+        <Route path="/notifications" element={<RequireAuth><NotificationsPage /></RequireAuth>} />
+        <Route path="/admin"         element={<RequireAuth><AdminUsersPage /></RequireAuth>} />
+        <Route path="*"              element={<Navigate to="/login" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
 export default App;
