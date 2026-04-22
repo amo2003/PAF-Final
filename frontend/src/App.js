@@ -1,3 +1,7 @@
+import logo from './logo.svg';
+import './App.css';
+//Module1
+import ResourceCatalogPage from "./M1/pages/ResourceCatalogPage";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage        from "./M4/pages/LoginPage";
 import LoginSuccessPage from "./M4/pages/LoginSuccessPage";
@@ -24,6 +28,9 @@ function App() {
       </Routes>
     </BrowserRouter>
   );
+//Module1
+return <ResourceCatalogPage />
+
 }
 
 export default App;
