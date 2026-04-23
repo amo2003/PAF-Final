@@ -78,7 +78,10 @@ const Layout = ({ children, unreadCount = 0 }) => {
     : "?";
 
   const handleLogout = () => {
+    // Clear ALL user-related data so next login starts fresh
     localStorage.removeItem("currentUser");
+    localStorage.removeItem("myTicketsName");
+    sessionStorage.clear();
     navigate("/login");
   };
 
@@ -121,7 +124,7 @@ const Layout = ({ children, unreadCount = 0 }) => {
           <NavItem to="/profile"       label="Profile"          icon={<IconPerson />} />
           <NavItem to="/notifications" label="Notifications"    icon={<IconBell />}   badge={unreadCount} />
           {currentUser?.role === "ADMIN" && (
-            <NavItem to="/admin"       label="Role management"  icon={<IconTeam />}   />
+            <NavItem to="/admin-users" label="Role management" icon={<IconTeam />} />
           )}
         </nav>
 
