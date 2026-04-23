@@ -1,100 +1,167 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getAllBookings, getBookingsByUser } from '../api/bookingApi';
+import { getBookingsByUser } from '../api/bookingApi';
 import StatusBadge from '../components/StatusBadge';
+import './MyBookings.css';
 
 function MyBookings() {
-  const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [userId, setUserId] = useState('');
-  const [searching, setSearching] = useState(false);
+  const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
 
-  // load all bookings on mount
+  const [bookings, setBookings]     = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState('');
+  // pre-fill with logged-in user's ID
+  const [userId, setUserId]         = useState(currentUser?.id ? String(currentUser.id) : '');
+  const [searching, setSearching]   = useState(false);
+  const [isMyView, setIsMyView]     = useState(!!currentUser?.id);
+
+  // on mount: load current user's bookings automatically
   useEffect(() => {
-    getAllBookings()
-      .then(setBookings)
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+    if (currentUser?.id) {
+      loadByUser(currentUser.id);
+    } else {
+      // no logged-in user — show empty
+      setLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadByUser = (id) => {
+    setLoading(true); setError('');
+    getBookingsByUser(id)
+      .then(setBookings)
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  };
 
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!userId.trim()) {
-      // reset to all
-      setLoading(true);
-      getAllBookings().then(setBookings).catch((e) => setError(e.message)).finally(() => setLoading(false));
+      // if cleared, go back to current user's bookings
+      if (currentUser?.id) {
+        setIsMyView(true);
+        loadByUser(currentUser.id);
+      }
       return;
     }
-    setSearching(true);
-    setError('');
+    setSearching(true); setError('');
+    setIsMyView(String(userId) === String(currentUser?.id));
     try { setBookings(await getBookingsByUser(userId)); }
     catch (err) { setError(err.message); }
     finally { setSearching(false); }
   };
 
-  const handleClear = async () => {
-    setUserId('');
-    setLoading(true);
-    setError('');
-    getAllBookings().then(setBookings).catch((e) => setError(e.message)).finally(() => setLoading(false));
+  const handleClear = () => {
+    setUserId(currentUser?.id ? String(currentUser.id) : '');
+    setIsMyView(!!currentUser?.id);
+    if (currentUser?.id) {
+      loadByUser(currentUser.id);
+    } else {
+      setBookings([]);
+    }
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-12">
-      <h1 className="text-3xl font-bold text-gray-800 mb-2">My Bookings</h1>
-      <p className="text-gray-500 mb-8">All bookings are shown below. Search by User ID to filter.</p>
+    <div className="mybookings-page">
 
-      {/* Search bar */}
-      <form onSubmit={handleSearch} className="flex gap-3 mb-8">
-        <input
-          type="number"
-          placeholder="Search by User ID..."
-          value={userId}
-          onChange={(e) => setUserId(e.target.value)}
-          className="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 w-56"
-        />
-        <button type="submit" disabled={searching}
-          className="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition disabled:opacity-50">
-          {searching ? 'Searching...' : 'Search'}
+      {/* Hero */}
+      <div className="mybookings-hero">
+        <div className="mybookings-hero-text">
+          <div className="mybookings-hero-badge">📋 Booking Management</div>
+          <h1>{isMyView ? 'My Bookings' : `Bookings for User #${userId}`}</h1>
+          <p>
+            {isMyView && currentUser?.name
+              ? `Showing all bookings for ${currentUser.name}`
+              : 'View and manage campus resource reservations'}
+          </p>
+        </div>
+        <Link to="/reslist" style={{
+          background: '#fff', color: '#4f46e5', fontWeight: 800, fontSize: 13,
+          padding: '11px 22px', borderRadius: 12, textDecoration: 'none',
+          boxShadow: '0 4px 14px rgba(0,0,0,.15)',
+          display: 'inline-block', zIndex: 1, position: 'relative',
+        }}>+ New Booking</Link>
+      </div>
+
+      {/* Search — only show for admins or if they want to look up another user */}
+      <form className="mybookings-search" onSubmit={handleSearch}>
+        <span className="mybookings-search-label">Filter by User ID</span>
+        <div className="mybookings-search-wrap">
+          <svg width="14" height="14" fill="none" stroke="#94a3b8" strokeWidth="1.5" viewBox="0 0 16 16">
+            <circle cx="8" cy="5.5" r="3"/><path d="M2 14c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/>
+          </svg>
+          <input
+            type="number"
+            placeholder={currentUser?.id ? `Your ID: ${currentUser.id}` : 'Enter User ID...'}
+            value={userId}
+            onChange={e => setUserId(e.target.value)}
+          />
+        </div>
+        <button type="submit" className="btn-search" disabled={searching}>
+          {searching ? 'Searching...' : '🔍 Search'}
         </button>
-        {userId && (
-          <button type="button" onClick={handleClear}
-            className="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-200 transition">
-            Clear
+        {String(userId) !== String(currentUser?.id) && (
+          <button type="button" className="btn-clear" onClick={handleClear}>
+            ↩ My Bookings
           </button>
         )}
       </form>
 
-      {loading && <p className="text-gray-400 text-center py-12">Loading...</p>}
-      {error && <p className="text-red-500 text-center py-12">{error}</p>}
+      {loading && <p className="state-msg">Loading bookings...</p>}
+      {error   && <p className="state-msg error">{error}</p>}
+
       {!loading && !error && bookings.length === 0 && (
-        <p className="text-gray-400 text-center py-12">No bookings found.</p>
+        <div className="mybookings-empty">
+          <div className="empty-icon">📭</div>
+          <h3>No bookings found</h3>
+          <p>
+            {isMyView
+              ? "You haven't made any bookings yet."
+              : `No bookings found for User ID ${userId}.`}
+          </p>
+        </div>
       )}
 
       {!loading && !error && bookings.length > 0 && (
         <>
-          <p className="text-sm text-gray-400 mb-4">{bookings.length} booking(s) found</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {bookings.map((b) => (
-              <div key={b.id} className="bg-white rounded-2xl shadow-sm p-5 hover:shadow-md transition">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="font-semibold text-gray-800">Booking #{b.id}</span>
-                  <StatusBadge status={b.status} />
+          <p className="mybookings-count">{bookings.length} booking(s) found</p>
+          <div className="bookings-grid">
+            {bookings.map(b => (
+              <div key={b.id} className="booking-card">
+                <div className={`booking-card-accent ${b.status}`} />
+                <div className="booking-card-inner">
+                  <div className="booking-card-header">
+                    <span className="booking-card-id">{b.id}</span>
+                    <StatusBadge status={b.status} />
+                  </div>
+                  <div className="booking-card-meta">
+                    <div className="booking-card-meta-row">
+                      <span className="meta-icon">📅</span>
+                      <span className="meta-val">{b.bookingDate}</span>
+                    </div>
+                    <div className="booking-card-meta-row">
+                      <span className="meta-icon">⏰</span>
+                      <span className="meta-val">{b.startTime} – {b.endTime}</span>
+                    </div>
+                    <div className="booking-card-meta-row">
+                      <span className="meta-icon">🏢</span>
+                      Resource: <span className="meta-val">{b.resourceId}</span>
+                    </div>
+                    <div className="booking-card-meta-row">
+                      <span className="meta-icon">📝</span>
+                      <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.purpose}</span>
+                    </div>
+                  </div>
+                  {b.rejectionReason && (
+                    <div className="booking-card-reject">❌ {b.rejectionReason}</div>
+                  )}
+                  <div className="booking-card-footer">
+                    <span style={{fontSize:11,color:'#94a3b8'}}>#{b.id}</span>
+                    <Link to={`/bookings/${b.id}`} className="booking-card-link">
+                      View Details →
+                    </Link>
+                  </div>
                 </div>
-                <div className="text-sm text-gray-500 space-y-1 mb-4">
-                  <p>📅 {b.bookingDate}</p>
-                  <p>⏰ {b.startTime} – {b.endTime}</p>
-                  <p>🏢 Resource: {b.resourceId}</p>
-                  <p>👤 User: {b.userId}</p>
-                  <p className="truncate">📝 {b.purpose}</p>
-                </div>
-                {b.rejectionReason && (
-                  <p className="text-xs text-red-500 mb-3">Reason: {b.rejectionReason}</p>
-                )}
-                <Link to={`/bookings/${b.id}`} className="text-indigo-600 text-xs font-medium hover:underline">
-                  View Details →
-                </Link>
               </div>
             ))}
           </div>
