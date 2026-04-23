@@ -1,184 +1,189 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Layout from "../components/Layout";
-import {
-  getNotificationsByUser,
-  markAsRead,
-  markAllAsRead,
-  deleteNotification,
-} from "../services/notificationService";
+import { getNotificationsByUser, markAsRead, markAllAsRead, deleteNotification } from "../services/notificationService";
+import { getLocalNotifications, markLocalRead, markAllLocalRead, deleteLocalNotification } from "../services/localNotifications";
+import "./NotificationsPage.css";
 
-/* ── Type config ── */
-const TYPE_CFG = {
-  BOOKING_APPROVED: { bg: "rgba(16,185,129,.12)",  color: "#10b981", label: "Booking",  iconPath: "approved" },
-  BOOKING_REJECTED: { bg: "rgba(239,68,68,.1)",    color: "#ef4444", label: "Booking",  iconPath: "rejected" },
-  TICKET_UPDATE:    { bg: "rgba(245,158,11,.12)",  color: "#f59e0b", label: "Ticket",   iconPath: "ticket"   },
-  COMMENT:          { bg: "rgba(139,92,246,.12)",  color: "#8b5cf6", label: "Comment",  iconPath: "comment"  },
-  ROLE_CHANGE:      { bg: "rgba(59,130,246,.1)",   color: "#3b82f6", label: "Role",     iconPath: "role"     },
-};
-const getTC = (t) => {
-  for (const k of Object.keys(TYPE_CFG)) { if (t?.includes(k)) return TYPE_CFG[k]; }
-  return { bg: "rgba(245,158,11,.12)", color: "#f59e0b", label: "Alert", iconPath: "ticket" };
+const TYPE_META = {
+  BOOKING_APPROVED:  { icon: "✅", color: "#059669", bg: "#f0fdf4", border: "#bbf7d0", label: "Approved"   },
+  BOOKING_REJECTED:  { icon: "❌", color: "#dc2626", bg: "#fef2f2", border: "#fecaca", label: "Rejected"   },
+  BOOKING_CREATED:   { icon: "📅", color: "#4f46e5", bg: "#eef2ff", border: "#c7d2fe", label: "Booking"    },
+  BOOKING_CANCELLED: { icon: "🚫", color: "#d97706", bg: "#fefce8", border: "#fde68a", label: "Cancelled"  },
+  BOOKING_DELETED:   { icon: "🗑️", color: "#64748b", bg: "#f8fafc", border: "#e2e8f0", label: "Deleted"    },
+  TICKET_UPDATE:     { icon: "🎫", color: "#d97706", bg: "#fefce8", border: "#fde68a", label: "Ticket"     },
+  COMMENT:           { icon: "💬", color: "#7c3aed", bg: "#faf5ff", border: "#ddd6fe", label: "Comment"    },
+  ROLE_CHANGE:       { icon: "👤", color: "#2563eb", bg: "#eff6ff", border: "#bfdbfe", label: "Role"       },
+  LOGIN:             { icon: "🔐", color: "#059669", bg: "#f0fdf4", border: "#bbf7d0", label: "Login"      },
+  LOGOUT:            { icon: "🚪", color: "#64748b", bg: "#f8fafc", border: "#e2e8f0", label: "Logout"     },
 };
 
-/* ── Small inline icons ── */
-const NotifIcon = ({ path, color, bg }) => {
-  const icons = {
-    approved: <><rect x="2" y="3" width="12" height="11" rx="1.5"/><line x1="5" y1="1.5" x2="5" y2="4.5"/><line x1="11" y1="1.5" x2="11" y2="4.5"/><line x1="2" y1="7" x2="14" y2="7"/><polyline points="5,10 7,12 11,9"/></>,
-    rejected: <><rect x="2" y="3" width="12" height="11" rx="1.5"/><line x1="5" y1="1.5" x2="5" y2="4.5"/><line x1="11" y1="1.5" x2="11" y2="4.5"/><line x1="2" y1="7" x2="14" y2="7"/><line x1="6" y1="10" x2="10" y2="10"/></>,
-    ticket:   <><circle cx="8" cy="8" r="6"/><line x1="8" y1="5" x2="8" y2="8.5"/><circle cx="8" cy="11" r=".6" fill="currentColor"/></>,
-    comment:  <path d="M2 2h12v9H9l-3 3v-3H2z"/>,
-    role:     <><circle cx="5.5" cy="5" r="2.5"/><path d="M1 14c0-2.5 2-4.5 4.5-4.5"/><circle cx="11.5" cy="8.5" r="2"/><path d="M8.5 14c0-2 1.5-3.5 3-3.5s3 1.5 3 3.5"/></>,
-  };
-  return (
-    <div style={{ width: 38, height: 38, borderRadius: 10, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={color} strokeWidth="1.5">{icons[path]}</svg>
-    </div>
-  );
+const getMeta = (type) => {
+  if (!type) return { icon: "🔔", color: "#4f46e5", bg: "#eef2ff", border: "#c7d2fe", label: "Alert" };
+  for (const k of Object.keys(TYPE_META)) {
+    if (type.includes(k)) return TYPE_META[k];
+  }
+  return { icon: "🔔", color: "#4f46e5", bg: "#eef2ff", border: "#c7d2fe", label: "Alert" };
 };
 
-/* ── Icon button ── */
-const IBtn = ({ onClick, title, children, danger }) => (
-  <button
-    onClick={onClick} title={title}
-    style={{
-      width: 30, height: 30, borderRadius: 8, border: "1px solid var(--border)",
-      background: "transparent", cursor: "pointer", display: "flex",
-      alignItems: "center", justifyContent: "center", transition: "all .15s",
-      color: danger ? "var(--red)" : "var(--amber)",
-    }}
-    onMouseEnter={e => { e.currentTarget.style.background = danger ? "rgba(239,68,68,.08)" : "rgba(245,158,11,.08)"; e.currentTarget.style.borderColor = "var(--border2)"; }}
-    onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "var(--border)"; }}
-  >{children}</button>
-);
+const fmtTime = (ts) => {
+  if (!ts) return "";
+  try { return new Date(ts).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
+  catch { return ""; }
+};
 
-const CheckSVG = () => <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8"><polyline points="2,6 5,9 10,3"/></svg>;
-const XSvg    = () => <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg>;
-
-/* ── Filter chips ── */
 const FILTERS = [
-  { key: "all",     label: "All" },
+  { key: "all",     label: "All"      },
   { key: "BOOKING", label: "Bookings" },
-  { key: "TICKET",  label: "Tickets" },
-  { key: "COMMENT", label: "Comments" },
+  { key: "TICKET",  label: "Tickets"  },
+  { key: "LOGIN",   label: "Activity" },
 ];
 
 const NotificationsPage = () => {
-  const [notifications, setNotifications] = useState([]);
+  const [backendNotifs, setBackendNotifs] = useState([]);
+  const [localNotifs,   setLocalNotifs]   = useState([]);
   const [filter, setFilter]               = useState("all");
+  const [loading, setLoading]             = useState(true);
 
   const currentUser = JSON.parse(localStorage.getItem("currentUser") || "null");
   const userId = currentUser?.id;
 
-  const fetchData = async () => {
-    if (!userId) return;
+  const loadLocal = () => setLocalNotifs(getLocalNotifications());
+
+  const loadBackend = useCallback(async () => {
+    if (!userId || userId === 0) { setLoading(false); return; }
     try {
       const res = await getNotificationsByUser(userId);
-      setNotifications(res.data);
-    } catch (e) { console.error(e); }
+      setBackendNotifs(Array.isArray(res.data) ? res.data : []);
+    } catch { setBackendNotifs([]); }
+    finally { setLoading(false); }
+  }, [userId]);
+
+  useEffect(() => {
+    loadLocal();
+    loadBackend();
+  }, [loadBackend]);
+
+  // Merge: backend first, then local — sorted by date desc
+  const all = [
+    ...backendNotifs.map(n => ({ ...n, source: "backend" })),
+    ...localNotifs.map(n => ({ ...n, source: "local" })),
+  ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const visible = filter === "all"
+    ? all
+    : all.filter(n => n.type?.includes(filter));
+
+  const unread = all.filter(n => !n.read).length;
+
+  const handleRead = async (n) => {
+    if (n.source === "local") { markLocalRead(n.id); loadLocal(); }
+    else { try { await markAsRead(n.id); await loadBackend(); } catch {} }
   };
 
-  useEffect(() => { fetchData(); }, [userId]);
+  const handleReadAll = async () => {
+    markAllLocalRead(); loadLocal();
+    if (userId && userId !== 0) { try { await markAllAsRead(userId); await loadBackend(); } catch {} }
+  };
 
-  const handleRead    = async (id) => { await markAsRead(id);         fetchData(); };
-  const handleReadAll = async ()   => { await markAllAsRead(userId);   fetchData(); };
-  const handleDelete  = async (id) => { await deleteNotification(id); fetchData(); };
-
-  const unread   = notifications.filter(n => !n.read).length;
-  const visible  = filter === "all"
-    ? notifications
-    : notifications.filter(n => n.type?.includes(filter));
-
-  const fmtTime = (ts) => new Date(ts).toLocaleString([], {
-    month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
-  });
+  const handleDelete = async (n) => {
+    if (n.source === "local") { deleteLocalNotification(n.id); loadLocal(); }
+    else { try { await deleteNotification(n.id); await loadBackend(); } catch {} }
+  };
 
   return (
     <Layout unreadCount={unread}>
-      <div style={{ maxWidth: 680 }}>
+      <div className="notif-page">
 
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 22 }}>
+        <div className="notif-header">
           <div>
-            <h2 className="m4-page-title">Notifications</h2>
-            <p className="m4-page-sub">
-              {unread > 0 ? `${unread} unread message${unread > 1 ? "s" : ""}` : "You're all caught up"}
+            <h1 className="notif-title">Notifications</h1>
+            <p className="notif-sub">
+              {loading ? "Loading..." : unread > 0 ? `${unread} unread` : "You're all caught up"}
             </p>
           </div>
           {unread > 0 && (
-            <button
-              onClick={handleReadAll}
-              style={{
-                padding: "8px 16px", borderRadius: 9, border: "1px solid var(--border2)",
-                background: "transparent", color: "var(--text2)", fontSize: 12, fontWeight: 500,
-                cursor: "pointer", fontFamily: "inherit", transition: "all .15s",
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = "var(--navy3)"; e.currentTarget.style.color = "var(--text)"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text2)"; }}
-            >
-              Mark all as read
+            <button className="notif-read-all-btn" onClick={handleReadAll}>
+              ✓ Mark all as read
             </button>
           )}
         </div>
 
-        {/* Filters */}
-        <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>
+        {/* Filter tabs */}
+        <div className="notif-filters">
           {FILTERS.map(f => (
             <button
               key={f.key}
               onClick={() => setFilter(f.key)}
-              style={{
-                padding: "6px 16px", borderRadius: 20, fontSize: 12, fontWeight: filter === f.key ? 600 : 400,
-                border: filter === f.key ? "1px solid rgba(245,158,11,.3)" : "1px solid var(--border)",
-                background: filter === f.key ? "rgba(245,158,11,.1)" : "transparent",
-                color: filter === f.key ? "var(--amber)" : "var(--text2)",
-                cursor: "pointer", fontFamily: "inherit", transition: "all .15s",
-              }}
-            >{f.label}</button>
+              className={`notif-filter-btn${filter === f.key ? " active" : ""}`}
+            >
+              {f.label}
+            </button>
           ))}
         </div>
 
+        {/* Loading */}
+        {loading && <p className="notif-state">Loading notifications...</p>}
+
+        {/* Empty */}
+        {!loading && visible.length === 0 && (
+          <div className="notif-empty">
+            <div className="notif-empty-icon">🔔</div>
+            <p>No notifications in this category</p>
+          </div>
+        )}
+
         {/* List */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {visible.length === 0 ? (
-            <div style={{ padding: "48px 20px", textAlign: "center", color: "var(--text3)", fontSize: 14 }}>
-              No notifications in this category
-            </div>
-          ) : visible.map(n => {
-            const tc = getTC(n.type);
-            return (
-              <div
-                key={n.id}
-                style={{
-                  background: "var(--card)",
-                  border: n.read ? "1px solid var(--border)" : "1px solid rgba(245,158,11,.2)",
-                  borderLeft: n.read ? "1px solid var(--border)" : "2px solid var(--amber)",
-                  borderRadius: 12, padding: "14px 16px",
-                  display: "flex", gap: 13, alignItems: "flex-start",
-                  opacity: n.read ? 0.6 : 1,
-                  transition: "opacity .2s, border-color .2s",
-                }}
-              >
-                <NotifIcon path={tc.iconPath} color={tc.color} bg={tc.bg} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 4 }}>{n.title}</div>
-                  <div style={{ fontSize: 12, color: "var(--text2)", lineHeight: 1.6, marginBottom: 8 }}>{n.message}</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 10, padding: "2px 9px", borderRadius: 8, fontWeight: 600, background: tc.bg, color: tc.color }}>
-                      {tc.label}
-                    </span>
-                    <span style={{ fontSize: 11, color: "var(--text3)" }}>{fmtTime(n.createdAt)}</span>
+        {!loading && visible.length > 0 && (
+          <div className="notif-list">
+            {visible.map(n => {
+              const m = getMeta(n.type);
+              return (
+                <div key={n.id} className={`notif-card${n.read ? " read" : ""}`}
+                  style={{ borderLeftColor: m.color }}>
+
+                  {/* Icon */}
+                  <div className="notif-icon-wrap" style={{ background: m.bg, border: `1px solid ${m.border}` }}>
+                    <span className="notif-icon">{m.icon}</span>
+                  </div>
+
+                  {/* Content */}
+                  <div className="notif-content">
+                    <div className="notif-card-title">{n.title || "Notification"}</div>
+                    <div className="notif-card-msg">{n.message}</div>
+                    <div className="notif-card-meta">
+                      <span className="notif-type-tag" style={{ background: m.bg, color: m.color, border: `1px solid ${m.border}` }}>
+                        {m.label}
+                      </span>
+                      {n.source === "local" && (
+                        <span className="notif-local-tag">Local</span>
+                      )}
+                      {n.createdAt && (
+                        <span className="notif-time">{fmtTime(n.createdAt)}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="notif-actions">
+                    {!n.read && (
+                      <button className="notif-act-btn" title="Mark as read" onClick={() => handleRead(n)}>
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8">
+                          <polyline points="2,6 5,9 10,3"/>
+                        </svg>
+                      </button>
+                    )}
+                    <button className="notif-act-btn danger" title="Delete" onClick={() => handleDelete(n)}>
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8">
+                        <line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/>
+                      </svg>
+                    </button>
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: 5, flexShrink: 0, paddingTop: 2 }}>
-                  {!n.read && (
-                    <IBtn onClick={() => handleRead(n.id)} title="Mark as read"><CheckSVG /></IBtn>
-                  )}
-                  <IBtn onClick={() => handleDelete(n.id)} title="Delete" danger><XSvg /></IBtn>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </Layout>
   );
