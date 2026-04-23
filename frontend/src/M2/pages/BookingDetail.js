@@ -1,24 +1,49 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getBookingById, cancelBooking, deleteBooking } from '../api/bookingApi';
-import StatusBadge from '../components/StatusBadge';
+import { addLocalNotification } from '../../M4/services/localNotifications';
+import './BookingDetail.css';
+
+const STATUS_ICONS = { PENDING: '⏳', APPROVED: '✅', REJECTED: '❌', CANCELLED: '🚫' };
+
+const INFO_ROWS = (b) => [
+  { icon: '🔖', label: 'Booking ID',  value: `#${b.id}`,                      highlight: true },
+  { icon: '🏢', label: 'Resource ID', value: b.resourceId },
+  { icon: '👤', label: 'User ID',     value: b.userId },
+  { icon: '📧', label: 'Email',       value: b.userEmail },
+  { icon: '📅', label: 'Date',        value: b.bookingDate },
+  { icon: '⏰', label: 'Time',        value: `${b.startTime} – ${b.endTime}` },
+  { icon: '📝', label: 'Purpose',     value: b.purpose },
+  { icon: '👥', label: 'Attendees',   value: b.attendees },
+];
 
 function BookingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [booking, setBooking] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [booking, setBooking]             = useState(null);
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
-    getBookingById(id).then(setBooking).catch((e) => setError(e.message)).finally(() => setLoading(false));
+    getBookingById(id)
+      .then(setBooking)
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
   }, [id]);
 
   const handleCancel = async () => {
     if (!window.confirm('Cancel this booking?')) return;
     setActionLoading(true);
-    try { setBooking(await cancelBooking(id)); }
+    try {
+      const updated = await cancelBooking(id);
+      setBooking(updated);
+      addLocalNotification(
+        'BOOKING_CANCELLED',
+        'Booking Cancelled',
+        `Booking #${id} for Resource ${booking.resourceId} on ${booking.bookingDate} has been cancelled.`
+      );
+    }
     catch (e) { alert(e.message); }
     finally { setActionLoading(false); }
   };
@@ -26,70 +51,88 @@ function BookingDetail() {
   const handleDelete = async () => {
     if (!window.confirm('Delete this booking permanently?')) return;
     setActionLoading(true);
-    try { await deleteBooking(id); navigate('/bookings'); }
+    try {
+      await deleteBooking(id);
+      addLocalNotification(
+        'BOOKING_DELETED',
+        'Booking Deleted',
+        `Booking #${id} for Resource ${booking.resourceId} on ${booking.bookingDate} has been permanently deleted.`
+      );
+      navigate('/');
+    }
     catch (e) { alert(e.message); setActionLoading(false); }
   };
 
-  if (loading) return <p className="text-center py-20 text-gray-400">Loading...</p>;
-  if (error) return <p className="text-center py-20 text-red-500">{error}</p>;
+  if (loading) return <div className="booking-detail-page"><div className="bd-state loading">Loading booking details...</div></div>;
+  if (error)   return <div className="booking-detail-page"><div className="bd-state error">{error}</div></div>;
   if (!booking) return null;
 
-  const rows = [
-    ['Booking ID', `#${booking.id}`],
-    ['Resource ID', booking.resourceId],
-    ['User ID', booking.userId],
-    ['Email', booking.userEmail],
-    ['Date', booking.bookingDate],
-    ['Time', `${booking.startTime} – ${booking.endTime}`],
-    ['Purpose', booking.purpose],
-    ['Attendees', booking.attendees],
-  ];
+  const status = booking.status || 'PENDING';
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-12">
-      <button onClick={() => navigate(-1)} className="text-indigo-600 text-sm mb-6 hover:underline">← Back</button>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Booking #{booking.id}</h1>
-        <StatusBadge status={booking.status} />
-      </div>
+    <div className="booking-detail-page">
 
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden mb-6">
-        <table className="w-full text-sm">
-          <tbody className="divide-y divide-gray-100">
-            {rows.map(([label, value]) => (
-              <tr key={label}>
-                <td className="px-6 py-3 text-gray-500 font-medium w-40">{label}</td>
-                <td className="px-6 py-3 text-gray-800">{value}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <button className="bd-back" onClick={() => navigate(-1)}>Back</button>
+
+      <div className="bd-hero">
+        <div className="bd-hero-inner">
+          <div>
+            <div className="bd-hero-id">Booking Reference</div>
+            <div className="bd-hero-title">#{booking.id}</div>
+            <div className="bd-hero-meta">
+              <div className="bd-hero-meta-item">📅 <strong>{booking.bookingDate}</strong></div>
+              <div className="bd-hero-meta-item">⏰ <strong>{booking.startTime} – {booking.endTime}</strong></div>
+              <div className="bd-hero-meta-item">🏢 Resource <strong>{booking.resourceId}</strong></div>
+            </div>
+          </div>
+          <div className={`bd-status-pill ${status}`}>
+            <span className="bd-status-dot" />
+            {STATUS_ICONS[status]} {status}
+          </div>
+        </div>
       </div>
 
       {booking.rejectionReason && (
-        <div className="bg-red-50 border border-red-200 rounded-xl px-5 py-4 mb-6 text-sm text-red-700">
-          <span className="font-semibold">Rejection Reason:</span> {booking.rejectionReason}
+        <div className="bd-rejection-box">
+          <div className="bd-rejection-icon">❌</div>
+          <div>
+            <div className="bd-rejection-label">Rejection Reason</div>
+            <div className="bd-rejection-text">{booking.rejectionReason}</div>
+          </div>
         </div>
       )}
 
-      <div className="flex gap-3">
-        {booking.status === 'APPROVED' && (
+      <div className="bd-info-card">
+        <div className="bd-info-card-header">
+          <div className="bd-info-card-icon">📋</div>
+          <h3>Booking Information</h3>
+        </div>
+        <div className="bd-info-rows">
+          {INFO_ROWS(booking).map(row => (
+            <div key={row.label} className="bd-info-row">
+              <div className="bd-info-row-icon">{row.icon}</div>
+              <div className="bd-info-row-label">{row.label}</div>
+              <div className={`bd-info-row-value${row.highlight ? ' highlight' : ''}`}>{row.value}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="bd-actions">
+        <div className="bd-actions-label">Actions</div>
+        {status === 'APPROVED' && (
           <>
-            <Link to={`/checkin/${booking.id}`}
-              className="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition">
-              📱 QR Check-In
-            </Link>
-            <button onClick={handleCancel} disabled={actionLoading}
-              className="bg-yellow-500 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-600 transition disabled:opacity-50">
+            <Link to={`/checkin/${booking.id}`} className="bd-btn bd-btn-qr">📱 QR Check-In</Link>
+            <button onClick={handleCancel} disabled={actionLoading} className="bd-btn bd-btn-cancel">
               Cancel Booking
             </button>
           </>
         )}
-        <button onClick={handleDelete} disabled={actionLoading}
-          className="bg-red-500 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-red-600 transition disabled:opacity-50">
-          Delete
+        <button onClick={handleDelete} disabled={actionLoading} className="bd-btn bd-btn-delete">
+          Delete Booking
         </button>
       </div>
+
     </div>
   );
 }
