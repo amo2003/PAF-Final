@@ -1,5 +1,6 @@
 package backend.Module_1.Model;
 
+import backend.Module_1.Enums.ResourceStatus;
 import backend.Module_1.Enums.ResourceType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
