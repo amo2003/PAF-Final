@@ -1,4 +1,4 @@
-const BASE_URL = "http://localhost:8084/api/module1/resources";
+const BASE_URL = "http://localhost:8080/api/module1/resources";
 
 async function handleResponse(response) {
   if (!response.ok) {
