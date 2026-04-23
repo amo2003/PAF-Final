@@ -14,6 +14,11 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
+                                "/api/bookings/**",
+                                "/api/chat/**",
+                                "/api/resources/**",
+                                "/api/module1/resources/**",
+                                "/api/tickets/**",
                                 "/api/module4/auth/**",
                                 "/api/module4/notifications/**",
                                 "/api/module4/users/**"
